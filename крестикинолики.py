@@ -1,115 +1,155 @@
-import random, os
-from datetime import datetime
+import os
 
-STATS_DIR, STATS_FILE_NAME = "tictactoe_stats", "stats.txt"
-STATS_FILE = os.path.join(STATS_DIR, STATS_FILE_NAME)
-WIN_COUNT = 3
+class User:
+    def __init__(self, name):
+        self._name = name 
 
-def setup_stats():
-    global STATS_FILE
-    try:
-        if not os.path.exists(STATS_DIR): os.makedirs(STATS_DIR)
-        if not os.path.exists(STATS_FILE):
-            with open(STATS_FILE, 'w', encoding='utf-8') as f: f.write("Дата и время | Размер поля | Победитель\n")
-    except OSError:
-        STATS_FILE = None
+class Librarian(User):
+    def show_info(self): 
+        #полиморфизм1
+        print("Библиотекарь: " + self._name)
 
-def save_stats(winner, size):
-    if STATS_FILE is None: return
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    result_line = f"{timestamp} | {size}x{size} | {winner}\n"
-    try:
-        with open(STATS_FILE, 'a', encoding='utf-8') as f: f.write(result_line)
-    except IOError: pass
+class Member(User):
+    def __init__(self, name, borrowed_books=None):
+        User.__init__(self, name)
+        if borrowed_books is None:
+            self.borrowed_books = []
+        else:
+            self.borrowed_books = borrowed_books
+    
+    def show_info(self): 
+        #полиморфизм2
+        books_string = ", ".join(self.borrowed_books)
+        print("Пользователь: " + self._name + " | Книги: " + books_string)
 
-def get_board_size():
-    while True:
-        try:
-            size_input = input("Введите размер игрового поля (минимум 3): ")
-            size = int(size_input)
-            if size >= 3: return size
-            print("Размер поля должен быть не менее 3.")
-        except ValueError: print("Некорректный ввод. Пожалуйста, введите целое число.")
+#сама система
+class Library:
+    def __init__(self):
+        self.books = []
+        self.members = []
+        self.load_data()
 
-def display_board(board):
-    size = len(board)
-    print("\n--- Игровое поле ---")
-    print("   " + "   ".join(str(i + 1) for i in range(size)))
-    separator = "-" * (size * 4 + 7)
-    print(separator)
-    for r in range(size):
-        row_cells = []
-        for c in range(size):
-            cell_content = board[r][c]
-            if cell_content == ' ': row_cells.append('.')
-            else: row_cells.append(cell_content)
-        row_content = f"{r + 1}: " + " | ".join(row_cells)
-        print(row_content)
-    print(separator)
-    print("-------------------\n")
+    def load_data(self):
+        if os.path.exists("books.txt"):
+            file = open("books.txt", "r", encoding="utf-8")
+            for line in file:
+                parts = line.strip().split("|")
+                book_data = {
+                    "name": parts[0], 
+                    "author": parts[1], 
+                    "status": parts[2]
+                }
+                self.books.append(book_data)
+            file.close()
+            
+        if os.path.exists("users.txt"):
+            file = open("users.txt", "r", encoding="utf-8")
+            for line in file:
+                parts = line.strip().split("|")
+                name = parts[0]
+                if parts[1]:
+                    user_books = parts[1].split(",")
+                else:
+                    user_books = []
+                self.members.append(Member(name, user_books))
+            file.close()
 
-def check_win(board, player):
-    size = len(board)
-    directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
-    for r in range(size):
-        for c in range(size):
-            if board[r][c] != player: continue
-            for dr, dc in directions:
-                count = 1
-                for i in range(1, WIN_COUNT):
-                    nr, nc = r + dr * i, c + dc * i
-                    is_in_bounds = (0 <= nr < size) and (0 <= nc < size)
-                    if is_in_bounds and board[nr][nc] == player: count += 1
-                    else: break
-                if count == WIN_COUNT: return True
-    return False
+    def save_data(self):
+        file = open("books.txt", "w", encoding="utf-8")
+        for book in self.books:
+            file.write(book["name"] + "|" + book["author"] + "|" + book["status"] + "\n")
+        file.close()
+        
+        file = open("users.txt", "w", encoding="utf-8")
+        for member in self.members:
+            books_string = ",".join(member.borrowed_books)
+            file.write(member._name + "|" + books_string + "\n")
+        file.close()
 
-def get_move(board, player):
-    size = len(board)
-    while True:
-        try:
-            move_input = input(f"Игрок '{player}', введите координаты (строка,столбец, например 1,2): ")
-            parts = move_input.split(',')
-            r_in = int(parts[0].strip())
-            c_in = int(parts[1].strip())
-            r, c = r_in - 1, c_in - 1
-            if 1 <= r_in <= size and 1 <= c_in <= size:
-                if board[r][c] == ' ': return r, c
-                print("Эта ячейка уже занята. Выберите другую.")
-            else: print(f"Координаты должны быть от 1 до {size}.")
-        except (ValueError, IndexError): print("Некорректный формат. Введите два числа через запятую (например, 1,2).")
-        except Exception: print("Произошла ошибка ввода. Попробуйте снова.")
+    def add_book(self):
+        name = input("Название: ")
+        author = input("Автор: ")
+        self.books.append({"name": name, "author": author, "status": "доступна"})
+    
+    def remove_book(self):
+        title = input("Название для удаления: ")
+        new_list = []
+        for book in self.books:
+            if book["name"] != title:
+                new_list.append(book)
+        self.books = new_list
 
-def start_game(size):
-    board = [[' ' for _ in range(size)] for _ in range(size)] 
-    current_player = random.choice(['X', 'O'])
-    print(f"Первым ходит игрок: '{current_player}'")
-    moves_made, winner = 0, None
-    while True:
-        display_board(board)
-        row, col = get_move(board, current_player)
-        board[row][col] = current_player
-        moves_made += 1
-        if check_win(board, current_player): winner = current_player; break
-        elif moves_made == size * size: winner = "Ничья"; break
-        if current_player == 'X': current_player = 'O'
-        else: current_player = 'X'
-    display_board(board)
-    if winner == "Ничья": print("Ничья! Игровое поле заполнено.")
-    else: print(f"Поздравляем! Игрок '{winner}' победил, собрав {WIN_COUNT} в ряд!")
-    save_stats(winner, size)
+    def take_book(self, user):
+        title = input("Название книги: ")
+        for book in self.books:
+            if book["name"] == title:
+                if book["status"] == "доступна":
+                    book["status"] = "выдана"
+                    user.borrowed_books.append(title)
+                    print("Книга взята.")
+                else:
+                    print("Книга уже занята.")
+                return
+        print("Книга не найдена.")
 
-def main():
-    print("--- Добро пожаловать в игру Крестики-нолики! ---") 
-    setup_stats()
-    while True:
-        board_size = get_board_size()
-        start_game(board_size) 
-        while True:
-            play_again = input("Хотите сыграть еще раз? (да/нет): ").strip().lower()
-            if play_again == 'да': print("\n--- Запуск новой игры ---\n"); break
-            elif play_again in ['нет', 'no', 'н']: print("Спасибо за игру! До свидания."); return
-            else: print("Некорректный ввод. Пожалуйста, введите 'да' или 'нет'.")
+    def return_book(self, user):
+        title = input("Название книги: ")
+        if title in user.borrowed_books:
+            for book in self.books:
+                if book["name"] == title:
+                    book["status"] = "доступна"
+            user.borrowed_books.remove(title)
+            print("Книга возвращена.")
+        else:
+            print("У вас нет такой книги.")
 
-if __name__ == "__main__":
-    main()
+# --- 3. ИНТЕРФЕЙС ---
+library = Library()
+
+while True:
+    print("\n1-Библиотекарь, 2-Пользователь, 0-Выход")
+    role = input("Выберите роль: ")
+    
+    if role == "0":
+        library.save_data()
+        break
+        
+    if role == "1":
+        print("\n[Меню библиотекаря]")
+        act = input("1-Добавить, 2-Удалить, 3-Рег. юзера, 4-Все юзеры, 5-Все книги: ")
+        if act == "1":
+            library.add_book()
+        elif act == "2":
+            library.remove_book()
+        elif act == "3":
+            new_name = input("Имя пользователя: ")
+            library.members.append(Member(new_name))
+        elif act == "4":
+            for member in library.members:
+                member.show_info()
+        elif act == "5":
+            for book in library.books:
+                print(book)
+                
+    elif role == "2":
+        name = input("Введите ваше имя: ")
+        current_user = None
+        for m in library.members:
+            if m._name == name:
+                current_user = m
+                
+        if current_user:
+            print("\n[Меню пользователя]")
+            act = input("1-Доступные книги, 2-Взять, 3-Вернуть, 4-Мои книги: ")
+            if act == "1":
+                for book in library.books:
+                    if book["status"] == "доступна":
+                        print(book)
+            elif act == "2":
+                library.take_book(current_user)
+            elif act == "3":
+                library.return_book(current_user)
+            elif act == "4":
+                print(current_user.borrowed_books)
+        else:
+            print("Пользователь не найден.")
