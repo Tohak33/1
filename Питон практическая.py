@@ -1,8 +1,13 @@
 import os
+from abc import ABC, abstractmethod
 
-class User:
+class User(ABC):
     def __init__(self, name):
         self._name = name 
+
+    @abstractmethod  # Делаем метод абстрактным
+    def show_info(self): 
+        pass
 
 class Librarian(User):
     def show_info(self): 
@@ -22,7 +27,7 @@ class Member(User):
         books_string = ", ".join(self.borrowed_books)
         print("Пользователь: " + self._name + " | Книги: " + books_string)
 
-#сама система
+
 class Library:
     def __init__(self):
         self.books = []
@@ -103,7 +108,6 @@ class Library:
         else:
             print("У вас нет такой книги.")
 
-# --- 3. ИНТЕРФЕЙС ---
 library = Library()
 
 while True:
@@ -150,6 +154,6 @@ while True:
             elif act == "3":
                 library.return_book(current_user)
             elif act == "4":
-                print(current_user.borrowed_books)
+                current_user.show_info() # Используем метод полиморфизма для вывода
         else:
             print("Пользователь не найден.")
