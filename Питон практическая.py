@@ -5,13 +5,12 @@ class User(ABC):
     def __init__(self, name):
         self._name = name 
 
-    @abstractmethod  # Делаем метод абстрактным
+    @abstractmethod
     def show_info(self): 
         pass
 
 class Librarian(User):
     def show_info(self): 
-        #полиморфизм1
         print("Библиотекарь: " + self._name)
 
 class Member(User):
@@ -23,10 +22,8 @@ class Member(User):
             self.borrowed_books = borrowed_books
     
     def show_info(self): 
-        #полиморфизм2
         books_string = ", ".join(self.borrowed_books)
         print("Пользователь: " + self._name + " | Книги: " + books_string)
-
 
 class Library:
     def __init__(self):
@@ -39,12 +36,13 @@ class Library:
             file = open("books.txt", "r", encoding="utf-8")
             for line in file:
                 parts = line.strip().split("|")
-                book_data = {
-                    "name": parts[0], 
-                    "author": parts[1], 
-                    "status": parts[2]
-                }
-                self.books.append(book_data)
+                if len(parts) == 3:
+                    book_data = {
+                        "name": parts[0], 
+                        "author": parts[1], 
+                        "status": parts[2]
+                    }
+                    self.books.append(book_data)
             file.close()
             
         if os.path.exists("users.txt"):
@@ -52,7 +50,7 @@ class Library:
             for line in file:
                 parts = line.strip().split("|")
                 name = parts[0]
-                if parts[1]:
+                if len(parts) > 1 and parts[1]:
                     user_books = parts[1].split(",")
                 else:
                     user_books = []
@@ -78,11 +76,17 @@ class Library:
     
     def remove_book(self):
         title = input("Название для удаления: ")
-        new_list = []
+        book_to_find = None
         for book in self.books:
-            if book["name"] != title:
-                new_list.append(book)
-        self.books = new_list
+            if book["name"] == title:
+                book_to_find = book
+                break
+        
+        if book_to_find:
+            self.books.remove(book_to_find)
+            print("Книга удалена.")
+        else:
+            print("Книга не найдена.")
 
     def take_book(self, user):
         title = input("Название книги: ")
@@ -154,6 +158,6 @@ while True:
             elif act == "3":
                 library.return_book(current_user)
             elif act == "4":
-                current_user.show_info() # Используем метод полиморфизма для вывода
+                current_user.show_info()
         else:
             print("Пользователь не найден.")
